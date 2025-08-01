@@ -1,5 +1,10 @@
-def handler(event=None, context=None):
-    return {
-        "statusCode": 200,
-        "body": "Hello from backend!"
-    }
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return jsonify({"message": "Hello from Codemaker backend!"})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000)
