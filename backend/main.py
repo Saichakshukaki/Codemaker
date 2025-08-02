@@ -6,8 +6,8 @@ import requests
 app = Flask(__name__)
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-REPO_OWNER = "Saichakshukaki"  # Your GitHub username
-REPO_NAME = "Codemaker"        # Your GitHub repo
+REPO_OWNER = "Saichakshukaki"
+REPO_NAME = "Codemaker"
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -25,7 +25,7 @@ def generate():
     for filename, content in files.items():
         upload_to_github(filename, content)
 
-    return jsonify({
+    return jsonify({   # ← VERY IMPORTANT
         "idea": idea,
         "files": files
     })
@@ -37,7 +37,7 @@ def upload_to_github(filename, content):
         "Accept": "application/vnd.github+json"
     }
 
-    # Check if file already exists
+    # Check if file exists
     resp = requests.get(url, headers=headers)
     if resp.status_code == 200:
         sha = resp.json()['sha']
@@ -45,7 +45,7 @@ def upload_to_github(filename, content):
         sha = None
 
     data = {
-        "message": f"Add or update {filename}",
+        "message": f"Add {filename}",
         "content": base64.b64encode(content.encode()).decode(),
         "branch": "main"
     }
