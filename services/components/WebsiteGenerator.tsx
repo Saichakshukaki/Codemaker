@@ -1,80 +1,52 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-interface GeneratedFiles {
-  idea: string;
-  files: {
-    "index.html": string;
-    "style.css": string;
-    "script.js": string;
-  };
-}
+export function WebsiteGenerator() {
+  const [loading, setLoading] = useState(false);
+  const [idea, setIdea] = useState('');
+  const [files, setFiles] = useState<{ [key: string]: string }>({});
+  const [error, setError] = useState('');
 
-export function WebsiteGenerator({
-  systemStatus,
-  setSystemStatus
-}: {
-  systemStatus: any;
-  setSystemStatus: any;
-}) {
-  const [data, setData] = useState<GeneratedFiles | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch('https://codemaker-backend.onrender.com/generate', {
-      method: 'POST'
-    })
-      .then(res => {
-        if (!res.ok) throw new Error("Backend error");
-        return res.json();
-      })
-      .then(json => {
-        setData(json);
-        setSystemStatus((prev: any) => ({
-          ...prev,
-          isRunning: true,
-          lastRun: new Date().toISOString(),
-          totalSites: prev.totalSites + 1,
-          currentTask: json.idea
-        }));
-        setLoading(false);
-      })
-      .catch(err => {
-        setError("Failed to fetch website idea from backend.");
-        setLoading(false);
+  async function generateSite() {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('https://codemaker-backend.onrender.com/generate', {
+        method: 'POST',
       });
-  }, []);
+      if (!response.ok) {
+        throw new Error('Failed to generate site');
+      }
+      const data = await response.json();
+      setIdea(data.idea);
+      setFiles(data.files);
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-        Website Generator
-      </h2>
-
-      {loading && <p className="text-gray-500 dark:text-gray-400">Generating website...</p>}
-      {error && <p className="text-red-600 dark:text-red-400">{error}</p>}
-
-      {data && (
-        <div className="space-y-4">
-          <p className="text-lg text-gray-700 dark:text-gray-300">
-            <strong>Generated Idea:</strong> {data.idea}
-          </p>
-
-          <iframe
-            title="Generated Site"
-            className="w-full h-[500px] border rounded-lg"
-            srcDoc={`
-              <html>
-                <head>
-                  <style>${data.files["style.css"]}</style>
-                </head>
-                <body>
-                  ${data.files["index.html"]}
-                  <script>${data.files["script.js"]}</script>
-                </body>
-              </html>
-            `}
-          />
+    <div>
+      <h2>Website Generator</h2>
+      <button onClick={generateSite} disabled={loading}>
+        {loading ? 'Generating...' : 'Generate New Website'}
+      </button>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {idea && <h3>Idea: {idea}</h3>}
+      {files && Object.keys(files).length > 0 && (
+        <div>
+          <h4>Generated Files:</h4>
+          <ul>
+            {Object.entries(files).map(([filename, content]) => (
+              <li key={filename}>
+                <strong>{filename}</strong>
+                <pre style={{ whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto' }}>
+                  {content}
+                </pre>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
