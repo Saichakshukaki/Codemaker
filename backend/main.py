@@ -1,17 +1,15 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
 import base64
 import requests
 
 app = Flask(__name__)
+CORS(app)  # <-- This enables CORS for all routes
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-REPO_OWNER = "Saichakshukaki"  # Replace with your GitHub username
-REPO_NAME = "Codemaker"        # Replace with your repository name
-
-@app.route('/')
-def home():
-    return jsonify({"message": "Codemaker backend is live!"})
+REPO_OWNER = "Saichakshukaki"  # Your GitHub username (update if needed)
+REPO_NAME = "Codemaker"        # Your GitHub repo name (update if needed)
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -41,24 +39,24 @@ def upload_to_github(filename, content):
         "Accept": "application/vnd.github+json"
     }
 
-    # Check if file already exists
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        sha = response.json()['sha']
+    # Check if file exists to get sha for updating
+    resp = requests.get(url, headers=headers)
+    if resp.status_code == 200:
+        sha = resp.json()['sha']
     else:
         sha = None
 
-    payload = {
-        "message": f"Add {filename}",
+    data = {
+        "message": f"Add or update {filename}",
         "content": base64.b64encode(content.encode()).decode(),
         "branch": "main"
     }
 
     if sha:
-        payload["sha"] = sha
+        data["sha"] = sha
 
-    put_response = requests.put(url, headers=headers, json=payload)
-    print(f"{filename} upload status:", put_response.status_code)
+    res = requests.put(url, headers=headers, json=data)
+    print(f"{filename} uploaded: {res.status_code}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
