@@ -1,76 +1,70 @@
 import React, { useState } from 'react';
+import { Lightbulb, Github, ExternalLink } from 'lucide-react';
 
-export function WebsiteGenerator({ systemStatus, setSystemStatus }: any) {
+interface WebsiteGeneratorProps {
+  systemStatus: any;
+  setSystemStatus: (status: any) => void;
+}
+
+export function WebsiteGenerator({ systemStatus, setSystemStatus }: WebsiteGeneratorProps) {
   const [loading, setLoading] = useState(false);
-  const [idea, setIdea] = useState('');
-  const [files, setFiles] = useState<{ [key: string]: string }>({});
-  const [error, setError] = useState('');
+  const [result, setResult] = useState<any>(null);
 
-  const generateWebsite = async () => {
+  const generateSite = async () => {
     setLoading(true);
-    setError('');
-    setIdea('');
-    setFiles({});
-
     try {
-      const response = await fetch('https://codemaker-backend.onrender.com/generate', {
-        method: 'POST',
+      const res = await fetch("https://codemaker-backend.onrender.com/generate", {
+        method: "POST"
       });
-
-      if (!response.ok) {
-        throw new Error('Backend failed to respond');
-      }
-
-      const data = await response.json();
-      setIdea(data.idea);
-      setFiles(data.files);
-
-      const now = new Date().toISOString();
-      setSystemStatus((prev: any) => ({
-        ...prev,
-        lastRun: now,
-        totalSites: prev.totalSites + 1,
-        currentTask: `Generated: ${data.idea}`,
-      }));
-      localStorage.setItem('lastRun', now);
-      localStorage.setItem('totalSites', (systemStatus.totalSites + 1).toString());
-    } catch (err: any) {
-      setError(err.message || 'Unknown error');
+      if (!res.ok) throw new Error("Failed to generate");
+      const data = await res.json();
+      console.log("Received from backend:", data);  // 👀 You’ll see this in browser console
+      setResult(data);
+    } catch (err) {
+      alert("Something went wrong while generating the site.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+        AI Website Generator
+      </h2>
+
       <button
-        onClick={generateWebsite}
+        onClick={generateSite}
         disabled={loading}
-        className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"
+        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
       >
-        {loading ? 'Generating...' : 'Generate New Website'}
+        {loading ? "Generating..." : "Generate New Idea"}
       </button>
 
-      {error && <p className="text-red-500">Error: {error}</p>}
+      {result && (
+        <div className="p-4 border mt-6 rounded-lg bg-white dark:bg-gray-800">
+          <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">{result.idea}</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">Files saved to GitHub repo in <code>/generated</code></p>
 
-      {idea && (
-        <div className="mt-4">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">💡 Idea:</h3>
-          <p className="text-gray-700 dark:text-gray-300">{idea}</p>
-        </div>
-      )}
+          <div className="flex space-x-4">
+            <a
+              href={`https://github.com/Saichakshukaki/Codemaker/tree/main/generated`}
+              className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:underline"
+              target="_blank"
+            >
+              <Github className="w-4 h-4" />
+              <span>View Code</span>
+            </a>
 
-      {Object.keys(files).length > 0 && (
-        <div className="mt-6 space-y-4">
-          <h4 className="text-md font-bold text-gray-800 dark:text-gray-100">📁 Generated Files:</h4>
-          {Object.entries(files).map(([filename, content]) => (
-            <div key={filename} className="border border-gray-300 dark:border-gray-700 p-3 rounded bg-white dark:bg-gray-800">
-              <h5 className="font-mono text-sm text-blue-600 dark:text-blue-300">{filename}</h5>
-              <pre className="whitespace-pre-wrap text-sm mt-2 text-gray-800 dark:text-gray-200 overflow-x-auto">
-                {content}
-              </pre>
-            </div>
-          ))}
+            <a
+              href={`https://saichakshukaki.github.io/Codemaker/generated/index.html`}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              target="_blank"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Live Demo</span>
+            </a>
+          </div>
         </div>
       )}
     </div>
