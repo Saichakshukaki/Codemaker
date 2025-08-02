@@ -9,22 +9,26 @@ interface WebsiteGeneratorProps {
 export function WebsiteGenerator({ systemStatus, setSystemStatus }: WebsiteGeneratorProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const generateSite = async () => {
     setLoading(true);
+    setError(null);
+
     try {
       const res = await fetch("https://codemaker-backend.onrender.com/generate", {
         method: "POST"
       });
-      if (!res.ok) throw new Error("Failed to generate");
+
+      if (!res.ok) throw new Error("Backend error: " + res.status);
+
       const data = await res.json();
-      console.log("Received from backend:", data);  // 👀 You’ll see this in browser console
       setResult(data);
     } catch (err) {
-      alert("Something went wrong while generating the site.");
-    } finally {
-      setLoading(false);
+      setError("Failed to fetch. Backend may be down or incorrect URL.");
     }
+
+    setLoading(false);
   };
 
   return (
@@ -41,6 +45,10 @@ export function WebsiteGenerator({ systemStatus, setSystemStatus }: WebsiteGener
         {loading ? "Generating..." : "Generate New Idea"}
       </button>
 
+      {error && (
+        <p className="text-red-500 font-medium">{error}</p>
+      )}
+
       {result && (
         <div className="p-4 border mt-6 rounded-lg bg-white dark:bg-gray-800">
           <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">{result.idea}</h3>
@@ -51,6 +59,7 @@ export function WebsiteGenerator({ systemStatus, setSystemStatus }: WebsiteGener
               href={`https://github.com/Saichakshukaki/Codemaker/tree/main/generated`}
               className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:underline"
               target="_blank"
+              rel="noopener noreferrer"
             >
               <Github className="w-4 h-4" />
               <span>View Code</span>
@@ -60,6 +69,7 @@ export function WebsiteGenerator({ systemStatus, setSystemStatus }: WebsiteGener
               href={`https://saichakshukaki.github.io/Codemaker/generated/index.html`}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               target="_blank"
+              rel="noopener noreferrer"
             >
               <ExternalLink className="w-4 h-4" />
               <span>Live Demo</span>
