@@ -12,12 +12,19 @@ export function WebsiteGenerator({ systemStatus, setSystemStatus }: WebsiteGener
 
   const generateSite = async () => {
     setLoading(true);
-    const res = await fetch("https://codemaker-backend.onrender.com/generate", {
-      method: "POST"
-    });
-    const data = await res.json();
-    setResult(data);
-    setLoading(false);
+    try {
+      const res = await fetch("https://codemaker-backend.onrender.com/generate", {
+        method: "POST",
+      });
+      console.log("Backend response status:", res.status);
+      const data = await res.json();
+      console.log("Backend response data:", data);
+      setResult(data);
+    } catch (err) {
+      console.error("Error during generation:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
