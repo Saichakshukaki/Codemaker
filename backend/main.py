@@ -1,63 +1,69 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 import os
 import base64
 import requests
+import traceback
 
 app = Flask(__name__)
-CORS(app)
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+
 REPO_OWNER = "Saichakshukaki"
 REPO_NAME = "Codemaker"
 
-@app.route("/generate", methods=["POST"])
+@app.route('/generate', methods=['POST'])
 def generate():
     try:
-        # Step 1: Ask OpenRouter for an idea and code
-        ai_response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "togethercomputer/CodeLlama-13b-Instruct",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are a helpful AI that generates creative website ideas and simple HTML, CSS, JS code."
-                    },
-                    {
-                        "role": "user",
-                        "content": "Give me a unique website idea and generate simple HTML, CSS, and JS files for it."
-                    }
-                ]
-            }
-        )
+        print("🔄 Starting generation")
 
-        if ai_response.status_code != 200:
-            return jsonify({"error": "Failed to fetch from OpenRouter"}), 500
-
-        output = ai_response.json()
-        full_text = output['choices'][0]['message']['content']
-
-        # Step 2: Extract parts (for now just dummy split)
-        idea = full_text.split("###")[0].strip()
-        html = "<html><body><h1>Example Page</h1></body></html>"
-        css = "body { font-family: Arial; }"
-        js = "console.log('Hello from AI!');"
-
-        files = {
-            "index.html": html,
-            "style.css": css,
-            "script.js": js
+        # Step 1: Get AI response from OpenRouter
+        headers = {
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json"
         }
 
-        # Step 3: Upload to GitHub
+        data = {
+            "model": "mistral:instruct",  # or another OpenRouter model you selected
+            "messages": [
+                {"role": "system", "content": "You are a website generator bot. You generate simple, creative, and useful websites."},
+                {"role": "user", "content": "Generate a creative website idea and include index.html, style.css, and script.js"}
+            ]
+        }
+
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
+
+        if response.status_code != 200:
+            print("❌ OpenRouter failed:", response.status_code, response.text)
+            return jsonify({"error": "AI generation failed"}), 500
+
+        ai_reply = response.json()['choices'][0]['message']['content']
+        print("✅ AI replied!")
+
+        # Assume AI sends output in format:
+        # IDEA: Tip Calculator
+        # FILE: index.html
+        # <html>...</html>
+        # FILE: style.css
+        # body {...}
+        # FILE: script.js
+        # console.log(...)
+
+        parts = ai_reply.split("FILE:")
+        idea = parts[0].replace("IDEA:", "").strip()
+        files = {}
+
+        for part in parts[1:]:
+            lines = part.strip().split("\n")
+            filename = lines[0].strip()
+            content = "\n".join(lines[1:])
+            files[filename] = content
+
+        # Step 2: Upload each file to GitHub
         for filename, content in files.items():
             upload_to_github(filename, content)
+
+        print("✅ All files uploaded to GitHub!")
 
         return jsonify({
             "idea": idea,
@@ -65,9 +71,9 @@ def generate():
         })
 
     except Exception as e:
-        print("Error:", e)
-        return jsonify({"error": str(e)}), 500
-
+        print("❌ ERROR:")
+        traceback.print_exc()
+        return jsonify({"error": "Internal server error"}), 500
 
 def upload_to_github(filename, content):
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/generated/{filename}"
@@ -77,8 +83,8 @@ def upload_to_github(filename, content):
     }
 
     # Check if file exists
-    get_resp = requests.get(url, headers=headers)
-    sha = get_resp.json().get("sha") if get_resp.status_code == 200 else None
+    resp = requests.get(url, headers=headers)
+    sha = resp.json().get('sha') if resp.status_code == 200 else None
 
     data = {
         "message": f"Add {filename}",
@@ -89,8 +95,8 @@ def upload_to_github(filename, content):
     if sha:
         data["sha"] = sha
 
-    put_resp = requests.put(url, headers=headers, json=data)
-    print(f"{filename} → GitHub:", put_resp.status_code)
+    res = requests.put(url, headers=headers, json=data)
+    print(f"📁 Uploaded {filename}:", res.status_code)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
