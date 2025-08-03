@@ -12,53 +12,62 @@ OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 REPO_OWNER = "Saichakshukaki"
 REPO_NAME = "Codemaker"
 
-@app.route('/generate', methods=['POST'])
+@app.route("/generate", methods=["POST"])
 def generate():
-    # Ask AI for a website idea and code
-    prompt = "Give me a fun, original website idea that includes: 1. a name, 2. a short description, 3. one index.html file, 4. one style.css file, 5. one script.js file. Return them as JSON with keys: idea, html, css, js."
-
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "HTTP-Referer": "https://codemaker.saichakshukaki.repl.co",  # change to your site URL later if needed
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "model": "openrouter/deepseek-coder:7b-instruct",
-        "messages": [
-            {"role": "user", "content": prompt}
-        ]
-    }
-
-    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
-
-    if response.status_code != 200:
-        return jsonify({"error": "AI request failed", "details": response.text}), 500
-
     try:
-        result = response.json()['choices'][0]['message']['content']
-        parsed = eval(result)  # We'll safely format this better later
+        # Step 1: Ask OpenRouter for an idea and code
+        ai_response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "togethercomputer/CodeLlama-13b-Instruct",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a helpful AI that generates creative website ideas and simple HTML, CSS, JS code."
+                    },
+                    {
+                        "role": "user",
+                        "content": "Give me a unique website idea and generate simple HTML, CSS, and JS files for it."
+                    }
+                ]
+            }
+        )
+
+        if ai_response.status_code != 200:
+            return jsonify({"error": "Failed to fetch from OpenRouter"}), 500
+
+        output = ai_response.json()
+        full_text = output['choices'][0]['message']['content']
+
+        # Step 2: Extract parts (for now just dummy split)
+        idea = full_text.split("###")[0].strip()
+        html = "<html><body><h1>Example Page</h1></body></html>"
+        css = "body { font-family: Arial; }"
+        js = "console.log('Hello from AI!');"
+
+        files = {
+            "index.html": html,
+            "style.css": css,
+            "script.js": js
+        }
+
+        # Step 3: Upload to GitHub
+        for filename, content in files.items():
+            upload_to_github(filename, content)
+
+        return jsonify({
+            "idea": idea,
+            "files": files
+        })
+
     except Exception as e:
-        return jsonify({"error": "Could not parse AI response", "details": str(e)}), 500
+        print("Error:", e)
+        return jsonify({"error": str(e)}), 500
 
-    idea = parsed.get("idea", "Unnamed Idea")
-    html = parsed.get("html", "")
-    css = parsed.get("css", "")
-    js = parsed.get("js", "")
-
-    files = {
-        "index.html": html,
-        "style.css": css,
-        "script.js": js
-    }
-
-    for filename, content in files.items():
-        upload_to_github(filename, content)
-
-    return jsonify({
-        "idea": idea,
-        "files": files
-    })
 
 def upload_to_github(filename, content):
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/generated/{filename}"
@@ -67,8 +76,9 @@ def upload_to_github(filename, content):
         "Accept": "application/vnd.github+json"
     }
 
+    # Check if file exists
     get_resp = requests.get(url, headers=headers)
-    sha = get_resp.json().get('sha') if get_resp.status_code == 200 else None
+    sha = get_resp.json().get("sha") if get_resp.status_code == 200 else None
 
     data = {
         "message": f"Add {filename}",
@@ -80,7 +90,7 @@ def upload_to_github(filename, content):
         data["sha"] = sha
 
     put_resp = requests.put(url, headers=headers, json=data)
-    print(f"Uploaded {filename}: {put_resp.status_code}")
+    print(f"{filename} → GitHub:", put_resp.status_code)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
