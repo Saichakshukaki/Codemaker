@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lightbulb, Github, ExternalLink } from 'lucide-react';
+import { Github, ExternalLink, Sparkles } from 'lucide-react';
 
 interface WebsiteGeneratorProps {
   systemStatus: any;
@@ -14,21 +14,25 @@ export function WebsiteGenerator({ systemStatus, setSystemStatus }: WebsiteGener
   const generateSite = async () => {
     setLoading(true);
     setError(null);
+    setResult(null);
 
     try {
       const res = await fetch("https://codemaker-backend.onrender.com/generate", {
         method: "POST"
       });
 
-      if (!res.ok) throw new Error("Backend error: " + res.status);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData?.error || "Unknown error");
+      }
 
       const data = await res.json();
       setResult(data);
-    } catch (err) {
-      setError("Failed to fetch. Backend may be down or incorrect URL.");
+    } catch (err: any) {
+      setError("Something went wrong: " + err.message);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -46,13 +50,18 @@ export function WebsiteGenerator({ systemStatus, setSystemStatus }: WebsiteGener
       </button>
 
       {error && (
-        <p className="text-red-500 font-medium">{error}</p>
+        <div className="mt-4 text-red-500">{error}</div>
       )}
 
       {result && (
         <div className="p-4 border mt-6 rounded-lg bg-white dark:bg-gray-800">
-          <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">{result.idea}</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">Files saved to GitHub repo in <code>/generated</code></p>
+          <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
+            <Sparkles className="inline-block mr-2 text-yellow-400" />
+            {result.idea}
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            Website files have been saved to GitHub repo in <code>/generated</code> folder.
+          </p>
 
           <div className="flex space-x-4">
             <a
